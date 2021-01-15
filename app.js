@@ -5,12 +5,13 @@ require('dotenv').config();
 
 const helmet = require('helmet');
 const { errors, celebrate, Joi } = require('celebrate');
-const auth = require('./middlewares/auth');
 const usersRouter = require('./routes/users.js');
 const cardsRouter = require('./routes/cards.js');
+const auth = require('./middlewares/auth');
 
 const { createUser, login } = require('./controllers/users');
 const { requestLogger, errorLogger } = require('./middlewares/loggers');
+const NotFound = require('./errors/notfound');
 
 const { PORT = 3000 } = process.env;
 
@@ -42,17 +43,18 @@ app.post('/signin', celebrate({
 
 app.post('/signup', celebrate({
   body: Joi.object().keys({
-    name: Joi.string().required().min(2).max(30),
-    about: Joi.string().required().min(2).max(30),
-    avatar: Joi.string().required().regex(/^(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|png)/),
     email: Joi.string().required().email(),
     password: Joi.string().required().regex(/^[A-Za-z0-9]{8,}$/),
-  }),
+  }).unknown(true),
 }), createUser);
 
-app.use(auth);
 app.use('/users', usersRouter);
 app.use('/cards', cardsRouter);
+
+// eslint-disable-next-line arrow-body-style
+app.use('/*', auth, (req, res, next) => {
+  return next(new NotFound('404 - страница не найдена'));
+});
 
 app.use(errorLogger);
 
